@@ -20,7 +20,7 @@ class CardContainer extends React.Component {
     client.on("message", (topic, payload) => {
       // Log message
       console.log(topic);
-      const topicRemoved = topic.replace("dados-sensores-1410427/", '')
+      const topicRemoved = topic.replace("dados-sensores-1410427/data/", '')
       const clientId = topicRemoved.slice(0, topicRemoved.search("/"))
       const subTopic = topicRemoved.slice(topicRemoved.search("/") + 1, topicRemoved.length)
 

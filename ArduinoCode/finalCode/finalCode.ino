@@ -1,3 +1,6 @@
+#include <MPU6050_tockn.h>
+#include <Wire.h>
+
 #define GAS_SENSOR 15
 #define VIBRATION_MOTOR  25
 #define HEART_PULSE 34
@@ -12,7 +15,7 @@ unsigned long lastBeatTime;
 unsigned long timeBetween;
 bool isBeat = false;
 int lastValues[TAM];
-int currentIndex = 0; 
+int currentIndex = 0;
 int averageBPM;
 
 /* Gas sensor declarations */
@@ -25,16 +28,25 @@ unsigned long motorTime;
 int number = 0;
 int alertState = 0;
 
-/* Serial definitions */
+/* Serial declarations */
 unsigned long serialTime;
 
-/* Sensors definitions */
+/* Sensors declarations */
 bool isGasOn = true;
 bool isMotorOn = true;
 bool isHeartOn = true;
 bool isFallOn = true;
- 
-void setup() { 
+
+/* Accelerometer declarations */
+MPU6050 mpu6050(Wire);
+unsigned long fallTimer = 0;
+int fallCount = 0;
+float lastX = 0;
+float lastY = 0;
+float lastZ = 0;
+bool fallDetected = false;
+
+void setup() {
 
   /* Motor definitions */
   pinMode(VIBRATION_MOTOR, OUTPUT );
@@ -53,11 +65,15 @@ void setup() {
   firstTime = millis();
   lastBeatTime = millis();
   timeBetween = 101;
-  
+
   /* Gas sensor definitions */
   R0 = 0.1;
- 
-} 
+
+  /* Accelerometer definitions */
+  Wire.begin();
+  mpu6050.begin();
+  mpu6050.calcGyroOffsets(true);
+}
 
 void alert(unsigned long currentTime) {
   if (currentTime - motorTime > 500) {
@@ -80,18 +96,18 @@ void heartSensor () {
   heartSignal = analogRead(HEART_PULSE) / 4;            // read the Pulse Sensor, bits of ESP32 ADC ch is 4 times larger
   unsigned long currentTime = millis();
 
-  if((currentTime - lastBeatTime) > 100) {
+  if ((currentTime - lastBeatTime) > 100) {
     if (heartSignal > P) {
       if (isBeat == false) {
         isBeat = true;
       }
     }
     else {
-      if (isBeat == true){
+      if (isBeat == true) {
         isBeat = false;
-        
+
         timeBetween = currentTime - lastBeatTime;
-        
+
         lastBeatTime = currentTime;
         BPM = (60000.0 / timeBetween);
 
@@ -100,10 +116,10 @@ void heartSensor () {
           currentIndex ++;
         }
         else {
-          for (int i=0;i<TAM - 1;i++) {
-            lastValues[i] = lastValues[i+1];
+          for (int i = 0; i < TAM - 1; i++) {
+            lastValues[i] = lastValues[i + 1];
           }
-          lastValues[TAM-1] = BPM;
+          lastValues[TAM - 1] = BPM;
         }
 
         averageBPM = calculateAverage(lastValues, currentIndex);
@@ -116,21 +132,47 @@ void heartSensor () {
     lastBeatTime = currentTime;
   }
 }
-void loop() { 
-  
+
+void fallDetection(unsigned long currentTime) {
+  mpu6050.update();
+
+  if(currentTime - fallTimer > 200){
+    float currentX = mpu6050.getAccX();
+    float currentY = mpu6050.getAccY();
+    float currentZ = mpu6050.getAccZ();
+    fallTimer = currentTime;
+
+    if (fallCount == 1) {
+      if(abs(lastY - currentY) < 0.25 && abs(lastZ - currentZ) < 0.25) {
+        fallDetected = true;
+      }
+      else {
+        fallCount = 0;
+        fallDetected = false;
+      }
+    }
+    if (lastX - currentX > 0.4) {
+      fallCount = 1;
+    }
+    lastX = currentX;
+    lastY = currentY;
+    lastZ = currentZ;
+  }
+
+}
+
+void loop() {
+
   bool gasAlert = false;
   unsigned long currentTime = millis();
 
   if (isGasOn) {
     /* Gas sensor calcs */
-    sensorValue = analogRead(GAS_SENSOR)/4.0; 
-    sensorVolt = (sensorValue / 1024) * 10.0; 
-    RS = (10.0 - sensorVolt) / sensorVolt; // Depend on RL on yor module 
-    gasRatio = RS / R0; // ratio = RS/R0 
-  }
+    sensorValue = analogRead(GAS_SENSOR) / 4.0;
+    sensorVolt = (sensorValue / 1024) * 10.0;
+    RS = (10.0 - sensorVolt) / sensorVolt; // Depend on RL on yor module
+    gasRatio = RS / R0; // ratio = RS/R0
 
-  if (isMotorOn) {  
-    /* Motor ifs */
     if (gasRatio < 9.40) {
       alert (currentTime);
       Serial.print("gasSensor: ");
@@ -144,36 +186,73 @@ void loop() {
 
   if (isHeartOn) {
     /* Heart Sensor */
-    if((currentTime - firstTime) > 200) {
+    if ((currentTime - firstTime) > 200) {
       firstTime = currentTime;
       heartSensor();
     }
   }
 
+  if (isFallOn) {
+    /* Accelerometer fall detection */
+    fallDetection(currentTime);
+  }
+
   /* Send serial */
   if (currentTime - serialTime > 4000) {
 
-    if (isGasOn) {   
+    if (isGasOn) {
       if (gasAlert) {
         Serial2.print("gas==true//");
-        Serial.print("gas==true//");
       }
-      else {  
+      else {
         Serial2.print("gas==false//");
-        Serial.print("gas==false//");
       }
     }
 
     if (isHeartOn && averageBPM != 0) {
       Serial2.print("heart==" + String(averageBPM) + "//");
-      Serial.print("heart==" + String(averageBPM) + "//");
     }
-    
+
+    if (isFallOn) {
+      if (fallDetected) {
+        Serial2.print("fall==true//");
+      }
+      else {
+        Serial2.print("fall==false//");
+      }
+    }
+
     Serial2.print("\r");
-    Serial.print("\r");
     serialTime = currentTime;
   }
- 
 
-  delay(10); 
+  /* Receive serial */
+  String receivedText = Serial2.readString();
+  if (receivedText != "") {
+    receivedText.trim();
+    if (receivedText.startsWith("*")) {
+      int idx1 = receivedText.indexOf("==");
+      String topic = receivedText.substring(1, idx1); //removes "*"
+      String dataR = receivedText.substring(idx1 + 2, receivedText.length() - 2);
+      if(topic == "gas") {
+        if (dataR == "false") isGasOn = false;
+        else isGasOn = true;
+      }
+      else if(topic == "alert") {
+        if (dataR == "false") isMotorOn = false;
+        else isMotorOn = true;
+      }
+      else if(topic == "heart") {
+        if (dataR == "false") isHeartOn = false;
+        else isHeartOn = true;
+      }
+      else if(topic == "fall") {
+        if (dataR == "false") isFallOn = false;
+        else isFallOn = true;
+      }
+      Serial.println(topic + " --> " + dataR);
+    }
+  }
+
+  delay(10);
 }

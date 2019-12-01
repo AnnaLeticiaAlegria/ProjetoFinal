@@ -10,22 +10,55 @@ class Card extends React.Component {
 
   placeComponent () {
     const { info, changeState } = this.props
+    if (info.isActive) {
+      switch(info.name) {
+        case "map":
+          return <MapWrapper coord={info.data} />
+        case "heartRate":
+          return <NormalCard type={info.name} bool={false} data={info.data} />
+        case "fall":
+        case "coGas":
+          return <NormalCard type={info.name} bool={true}  data={info.data}/>
+        case "alert":
+          return <div>alert</div>
+        default:
+          return <div></div>
+      }
+    }
+    else {
+      return <div></div>
+    }
+  }
+
+  onClickFunction = () => {
+    const { info, changeState, client, clientId } = this.props
+
+    let route = "dados-sensores-1410427/features/" + clientId
     switch(info.name) {
       case "map":
-        if(info.isActive) {
-          return <MapWrapper coord={info.data} />
-        }
-        return <div></div>
+        route += "/geo/"
+        break
       case "heartRate":
-        return <NormalCard type={info.name} bool={false} data={info.data} />
+        route += "/heart/"
+        break
       case "fall":
+        route += "/fall/"
+        break
       case "coGas":
-        return <NormalCard type={info.name} bool={true}  data={info.data}/>
+        route += "/gas/"
+        break
       case "alert":
-        return <div>alert</div>
+        route += "/alert/"
+        break
       default:
-        return <div></div>
+        break
     }
+    const data = (!info.isActive) ? "true" : "false"
+    client.publish(route, data)
+
+    console.log(route)
+    console.log(data)
+    changeState(info.name)
   }
 
   render (){
@@ -36,7 +69,7 @@ class Card extends React.Component {
           <div className="card__header">
             <span></span>
             <span> <h2>{info.text}</h2> </span>
-            <span> <div onClick={() => {changeState(info.name)}}>{(info.isActive) ? <X size="40px" /> : <Plus size="40px" /> }</div> </span>
+            <span> <div onClick={() => {this.onClickFunction()}}>{(info.isActive) ? <X size="40px" /> : <Plus size="40px" /> }</div> </span>
           </div>
           <div className="card__body">
             {this.placeComponent()}
