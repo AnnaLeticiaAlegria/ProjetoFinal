@@ -1,0 +1,6 @@
+local socket = require('socket')
+local host = socket.bind('*',1234)
+print('Aguardando uma conexao!')
+local user = host:accept()
+print('Alguem se conectou! aguardando dados')
+print(user:receive())
