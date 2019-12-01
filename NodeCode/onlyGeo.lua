@@ -50,7 +50,7 @@ function sendGeo(wifiAccessPoints)
   
   s = s .. '\n    ]\n  }';
   -- print(s);
-  http.post('https://www.googleapis.com/geolocation/v1/geolocate?key=AIzaSyCfX0_CrDjekaD2QgKpdH44jnjr1Xvb43U',
+  http.post('https://www.googleapis.com/geolocation/v1/geolocate?key=',
   'Content-Type: application/json\r\n', s, 
   function(code, data)
     if (code < 0) then
