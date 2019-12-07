@@ -56,7 +56,7 @@ function sendGeo(wifiAccessPoints)
     if (code < 0) then
       print("HTTP request failed :", code)
     else
-      mqttClient:publish("dados-sensores-1410427/"..clientId..'/geo', data ,0,0, 
+      mqttClient:publish("dados-sensores-1410427/data/"..clientId..'/geo', data ,0,0, 
             function(client) 
               print("Mandou localizacao")
             end)

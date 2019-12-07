@@ -32,18 +32,26 @@ function whenConnected (client)
      print("Serial tmr not created")
    end
 
-  mqttClient:subscribe("dados-sensores-1410427/features/#", 0, newSubscribe)
+  mqttClient:subscribe("dados-sensores-1410427/toESP8266/#", 0, newSubscribe)
 
   mqttClient:on("message", function(client, topic, data)
     -- print(topic .. " :" )
     if data ~= nil then
-      -- print("data recebida: " .. data)
       
-      local idxTopic = string.find(topic, "/" , string.len("dados-sensores-1410427/features/") + 1)
-      if (idxTopic) then
-        local subtopic = string.sub(topic, idxTopic + 1, string.len(topic) - 1)
-        print("*".. subtopic .. "==" .. data .. "//\n")
-      end
+      local isFeature = string.find(topic, "/features/")
+      if (isFeature) then
+        local idxTopic = string.find(topic, "/" , string.len("dados-sensores-1410427/toESP8266/features/") + 1)
+        if (idxTopic) then
+          local subtopic = string.sub(topic, idxTopic + 1, string.len(topic) - 1)
+          print("*".. subtopic .. "==" .. data .. "//\n")
+        end
+      else
+        local idxTopic = string.find(topic, "/" , string.len("dados-sensores-1410427/toESP8266/data/") + 1)
+        if (idxTopic) then
+          local subtopic = string.sub(topic, idxTopic + 1, string.len(topic) - 1)
+          print("+".. subtopic .. "==" .. data .. "//\n")
+        end
+      end 
     else
       print("data nil")
     end
@@ -55,7 +63,7 @@ uart.setup(0, 115200, 8, uart.PARITY_NONE, uart.STOPBITS_1, 0)
 
 uart.on("data", '\r',
   function(data)
-    print("recebendo: " .. data)
+    -- print("recebendo: " .. data)
     dataArray = {}
     local idxValue = -1
     local idxKey = 0
@@ -77,7 +85,7 @@ end, 0)
 function sendSerial () 
   local index = 1
   local state = 0
-  print("Entrou na sendSerial", #dataArray)
+  -- print("Entrou na sendSerial", #dataArray)
 
   local function sendMqtt () 
     if (index <= #dataArray) then
