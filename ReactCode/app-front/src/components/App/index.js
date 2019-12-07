@@ -21,7 +21,7 @@ class App extends React.Component {
     
     client.on("connect",  () => {
       client.publish("dados-sensores-1410427", "Hello world!");
-      client.subscribe("dados-sensores-1410427/data/#");
+      client.subscribe("dados-sensores-1410427/#");
       console.log("Connected to MQTT Broker.");
     });
   }

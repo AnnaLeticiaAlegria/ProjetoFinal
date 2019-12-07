@@ -5,22 +5,28 @@ import './index.less'
 
 import MapWrapper from './components/MapWrapper/index'
 import NormalCard from './components/NormalCard/index'
+import AlertCard from './components/AlertCard/index'
 
 class Card extends React.Component {
 
+  state = { intervalId: 0 }
+
   placeComponent () {
-    const { info, changeState } = this.props
+    const { info } = this.props
     if (info.isActive) {
       switch(info.name) {
         case "map":
-          return <MapWrapper coord={info.data} />
+          if (info.data.lat === 0 && info.data.lng === 0)
+            return <h3>Nenhum dado encontrado</h3>
+          else
+            return <MapWrapper coord={info.data} />
         case "heartRate":
           return <NormalCard type={info.name} bool={false} data={info.data} />
         case "fall":
         case "coGas":
           return <NormalCard type={info.name} bool={true}  data={info.data}/>
         case "alert":
-          return <div>alert</div>
+          return <AlertCard sendAlert={this.sendAlert}/>
         default:
           return <div></div>
       }
@@ -30,10 +36,18 @@ class Card extends React.Component {
     }
   }
 
+  sendAlert = () => {
+    const { client, clientId } = this.props
+
+    let route = "dados-sensores-1410427/toESP8266/data/" + clientId + "/alert/"
+
+    client.publish(route, "true")
+  }
+
   onClickFunction = () => {
     const { info, changeState, client, clientId } = this.props
 
-    let route = "dados-sensores-1410427/features/" + clientId
+    let route = "dados-sensores-1410427/toESP8266/features/" + clientId
     switch(info.name) {
       case "map":
         route += "/geo/"
@@ -62,7 +76,7 @@ class Card extends React.Component {
   }
 
   render (){
-    const { info, changeState } = this.props
+    const { info } = this.props
     return (
       <div className="card__wrapper" style={{backgroundColor: (info.isActive)? '' : '#B2B2B2'}}> 
         <span className="card__wrapper--border" style={{borderColor: (!info.isActive) ? '#666666' : (info.isAlert) ? '#FF7B73' : ''}}>

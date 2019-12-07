@@ -5,16 +5,18 @@ import './index.less'
 const NormalCard = ({type, data, bool}) => {
  
   switch (type) {
-    case "fall":
-    case "coGas":
+    case "heartRate":
+      if (data) {
+        data += " BPM"
+      }
       break
     default:
       break
   }
   return (
-    <div>
-      {(bool) ? ((data==='')? "Nenhum dado encontrado" : (data) ? "Algo de errado aconteceu!" : "Está tudo bem") : data }
-   </div>
+    <h3>
+      {(data ==='') ? "Nenhum dado encontrado" : (!bool) ? data : (data) ? "Algo de errado aconteceu!" : "Está tudo bem"}
+   </h3>
   )
 }
 

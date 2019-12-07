@@ -6,7 +6,7 @@ import Card from '../Card/index'
 
 class CardContainer extends React.Component {
 
-  state = {cardArray : [{name: 'map', text: 'Localização', data: {lat: 59.95, lng: 30.33}, isActive: true, isAlert: false},
+  state = {cardArray : [{name: 'map', text: 'Localização', data: {lat: 0, lng: 0}, isActive: true, isAlert: false},
               {name: 'heartRate', text: 'Frequência Cardíaca', data: '', isActive: true, isAlert: false},
               {name: 'fall', text: 'Queda', data: '', isActive: true, isAlert: false},
               {name: 'coGas', text: 'CO e Gases Inflamáveis', data: '', isActive: true, isAlert: false},

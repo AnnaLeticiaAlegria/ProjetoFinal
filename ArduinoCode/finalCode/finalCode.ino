@@ -27,13 +27,14 @@ float sensorValue;
 unsigned long motorTime;
 int number = 0;
 int alertState = 0;
+bool highGas = false;
 
 /* Serial declarations */
 unsigned long serialTime;
 
 /* Sensors declarations */
 bool isGasOn = true;
-bool isMotorOn = true;
+bool isAlertOn = true;
 bool isHeartOn = true;
 bool isFallOn = true;
 
@@ -45,6 +46,10 @@ float lastX = 0;
 float lastY = 0;
 float lastZ = 0;
 bool fallDetected = false;
+
+/* Alert declarations */
+bool alertSent = false;
+int alertTimes = 0;
 
 void setup() {
 
@@ -75,11 +80,12 @@ void setup() {
   mpu6050.calcGyroOffsets(true);
 }
 
-void alert(unsigned long currentTime) {
-  if (currentTime - motorTime > 500) {
+void alert(unsigned long currentTime, unsigned long duration) {
+  if (currentTime - motorTime > duration) {
     digitalWrite(VIBRATION_MOTOR, alertState);
     alertState = !alertState;
     motorTime = currentTime;
+    alertTimes ++;
   }
 }
 
@@ -173,14 +179,18 @@ void loop() {
     RS = (10.0 - sensorVolt) / sensorVolt; // Depend on RL on yor module
     gasRatio = RS / R0; // ratio = RS/R0
 
-    if (gasRatio < 9.40) {
-      alert (currentTime);
+    if (gasRatio < 8) {
+      highGas = true;
+      alert (currentTime, 500);
       Serial.print("gasSensor: ");
       Serial.println(gasRatio);
       gasAlert = true;
     }
     else {
-      digitalWrite(VIBRATION_MOTOR, LOW);
+      if (!alertSent) {
+        digitalWrite(VIBRATION_MOTOR, LOW);
+      }
+      highGas = false;
     }
   }
 
@@ -197,6 +207,22 @@ void loop() {
     fallDetection(currentTime);
   }
 
+  if (isAlertOn) {
+    /* Alert handler */
+    if (alertSent) {
+      if (alertTimes < 7) {
+        alert(currentTime, 1000);
+      }
+      else {
+        alertSent = false;
+        alertTimes = 0;
+        if (!highGas) {
+          digitalWrite(VIBRATION_MOTOR, LOW);
+        }
+      }
+    }
+  }
+
   /* Send serial */
   if (currentTime - serialTime > 4000) {
 
@@ -209,7 +235,7 @@ void loop() {
       }
     }
 
-    if (isHeartOn && averageBPM != 0) {
+    if (isHeartOn && averageBPM > 50) {
       Serial2.print("heart==" + String(averageBPM) + "//");
     }
 
@@ -230,6 +256,7 @@ void loop() {
   String receivedText = Serial2.readString();
   if (receivedText != "") {
     receivedText.trim();
+    Serial.println(receivedText);
     if (receivedText.startsWith("*")) {
       int idx1 = receivedText.indexOf("==");
       String topic = receivedText.substring(1, idx1); //removes "*"
@@ -239,8 +266,8 @@ void loop() {
         else isGasOn = true;
       }
       else if(topic == "alert") {
-        if (dataR == "false") isMotorOn = false;
-        else isMotorOn = true;
+        if (dataR == "false") isAlertOn = false;
+        else isAlertOn = true;
       }
       else if(topic == "heart") {
         if (dataR == "false") isHeartOn = false;
@@ -251,6 +278,18 @@ void loop() {
         else isFallOn = true;
       }
       Serial.println(topic + " --> " + dataR);
+    }
+    if (receivedText.startsWith("+")) {
+      int idx1 = receivedText.indexOf("==");
+      String topic = receivedText.substring(1, idx1); //removes "+"
+      String dataR = receivedText.substring(idx1 + 2, receivedText.length() - 2);
+      if(topic == "alert") {
+        if(isAlertOn) {
+          alertSent = true;
+          alertTimes = 0;
+          alert(currentTime, 1000);
+        }
+      }
     }
   }
 
